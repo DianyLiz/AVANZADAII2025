@@ -1,3 +1,11 @@
+import bcrypt  # libreria para encriptar contraseñas
+from datetime import datetime # libreria para manejar fechas
+
+import os
+os.system('cls' if os.name == 'nt' else 'clear')
+
+
+# Datos de los departamentos y municipios
 departamentos_municipios = {
     '01': {
         'nombre': 'Atlántida',
@@ -388,140 +396,157 @@ departamentos_municipios = {
         }
     }
 }
-'''
-    ALUMNOS:
-    - ILIANA LICETH ZUNIGA ENAMORADO
-    - DIANY LIZBETH ENAMORADO FERNANDEZ
-    - ANDERSON JAIR GARCIA MENJIVAR
-    - TOMY JOSE MONTUFAR ZUNIGA
-    - ANROLD STANLY FORD MADRID
-'''
-import bcrypt # libreria para encriptar contraseñas
-pwd = bytes('hola', 'utf-8') # contraseña encriptada
-sal = bcrypt.gensalt() # generador de sal
-encriptado = bcrypt.hashpw(pwd, sal) # encriptar la contraseña
+# Base de datos ficticia de usuarios
+usuarios = {
+    "admin": {
+        "password": bcrypt.hashpw("admin123".encode('utf-8'), bcrypt.gensalt()),
+        "intentos_fallidos": 0
+    }
+}
 
 def limpiar():
     import os
     os.system('cls' if os.name == 'nt' else 'clear')
-    
-limpiar()
 
-usuario_correcto = "Diany"
-intentos = 3
-# Acceder al programa
-while intentos > 0:
-    limpiar()
-    usuario = input("Ingrese su usuario: ")
-    contraseña = bytes(input("Ingrese su contraseña: "), 'utf-8')
+def calcular_edad(fecha_nacimiento): # Calcula la edad a partir de la fecha de nacimiento
+    hoy = datetime.today()
+    fecha_nacimiento = datetime.strptime(fecha_nacimiento, "%Y-%m-%d")
+    edad = hoy.year - fecha_nacimiento.year - ((hoy.month, hoy.day) < (fecha_nacimiento.month, fecha_nacimiento.day))
+    return edad
 
-    if usuario == usuario_correcto and bcrypt.checkpw(contraseña, encriptado):
-        print("Bienvenido al programa")
-        print(encriptado)
-        break
+def registrar_usuario(usuarios): # Función para registrar un usuario
+    username = input("Ingrese un nombre de usuario: ")
+    if username in usuarios:
+        print("El nombre de usuario ya existe. Intente con otro.")
+        return
+
+    password = input("Ingrese una contraseña: ")
+    fecha_nacimiento = input("Ingrese su fecha de nacimiento (YYYY-MM-DD): ")
+
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()) # Encriptar la contraseña
+    usuarios[username]  = {
+        "password": hashed_password,
+        "intentos_fallidos": 0,
+        "fecha_nacimiento": fecha_nacimiento
+    } # Agregar el usuario a la base de datos ficticia de usuarios y encriptar la contraseña y la fecha de nacimiento encriptada en el diccionario
+    print("Usuario registrado exitosamente.")
+
+def iniciar_sesion(usuarios):
+    username = input("Ingrese su nombre de usuario: ")
+    if username not in usuarios:
+        print("Usuario no encontrado.")
+        return False
+
+    if usuarios[username]["intentos_fallidos"] >= 3:
+        print("Su cuenta está bloqueada debido a múltiples intentos fallidos.")
+        return False
+
+    password = input("Ingrese su contraseña: ")
+    if bcrypt.checkpw(password.encode('utf-8'), usuarios[username]["password"]):
+        print("Inicio de sesión exitoso.")
+        usuarios[username]["intentos_fallidos"] = 0
+        return True
     else:
-        intentos -= 1
-        print("Usuario o contraseña incorrecta, intente de nuevo (",intentos," restantes)")
-        input("Presione Enter para intentarlo de nuevo...") 
-else:
-    limpiar()
-    print("Ha excedido el numero de intentos permitidos.")
-    exit()
+        print("Contraseña incorrecta.")
+        usuarios[username]["intentos_fallidos"] += 1
+        return False
 
-# Menu principal
-while True:
-    limpiar()
-    print("Bienvenido al programa")
-    print("1. Inspeccionar departamentos y muncipios.")
-    print("2. Ingresar su cedula.")
-    print("3. Salir.")
-    print("4. Renta Ejercicio 7 .")
-    print("5. Edad Ejercicio 17 .")
-    selec = input("Elija una opcion: ")
+def consultar_departamento_municipio(cedula):
+    departamento_codigo = cedula[:2]
+    municipio_codigo = cedula[2:4]
+    fecha_nacimiento = cedula[4:12]
 
-    # Inspeccionar departamentos y municipios
-    if selec == '1':
-        limpiar()
-        id = input("Ingrese el numero de departamento para ver sus municipios y su codigo (ejemplo 16): ")
-        if not id.isdigit() or len(id) != 2:
-            print("Codigo no valido, por favor intente de nuevo. (2 digitos y solo enteros)")
-            input("Presione Enter para continuar...")
-        else:
-            if id not in departamentos_municipios:
-                print("Departamento no encontrado.")
-                input("Presione Enter para continuar...")
-            else:
-                print("Departamento encontrado: ", departamentos_municipios[id]['nombre'])
-                print("-----------------------------------------------------")
-                print("Codigo\t\t Municipio")
-                print("-----------------------------------------------------")
-                for municipio in departamentos_municipios[id]['municipios']:
-                    print(municipio,"\t\t",departamentos_municipios[id]['municipios'][municipio])
-                    
-                input("Presione Enter para continuar...")
-    # Ingresar su cedula
-    elif selec == '2':
-        limpiar()
-        dni = input("Ingrese su numero de identidad: ")
+    departamento = departamentos_municipios.get(departamento_codigo, {}).get('nombre', 'Desconocido')
+    municipio = departamentos_municipios.get(departamento_codigo, {}).get('municipios', {}).get(municipio_codigo, 'Desconocido')
 
-        if not dni.isdigit() or len(dni) != 13:
-            print("Numero de identidad invalido, intente de nuevo (13 digitos y solo enteros)")
-            input("Presione Enter para continuar...")
-        else:
-            id_departamento = dni[0:2]
-            id_municipio = dni[2:4]
-            id_anionacimiento = dni[4:8]
-            edad = 2024 - int(id_anionacimiento)
+    try:
+        fecha_nacimiento = f"{fecha_nacimiento[:4]}-{fecha_nacimiento[4:6]}-{fecha_nacimiento[6:]}"
+        edad = calcular_edad(fecha_nacimiento)
+        es_mayor = edad >= 18
+    except ValueError:
+        es_mayor = False
 
-            if id_departamento not in departamentos_municipios or id_municipio not in departamentos_municipios[id_departamento]['municipios']:
-                print("Datos no encontrados.")
-                input("Presione Enter para continuar...")
-            else:
-                departamento = departamentos_municipios[id_departamento]
-                municipio = departamento['municipios'].get(id_municipio)
-                print("Departamento: ", departamento['nombre'])
-                print("Municipio: ", municipio)
-                print("Edad: ", edad, " años")
+    return departamento, municipio, es_mayor
 
-                if(edad>=21):
-                    print("Eres mayor de edad")
-                elif(edad>=18):
-                    print("Eres ciudadano")
-                else:
-                    print("Eres menor de edad")
+def consultar_departamento():
+    print("Departamentos y municipios disponibles:")
+    for depto_codigo, depto_info in departamentos_municipios.items():
+        print(f"{depto_codigo} - {depto_info['nombre']}")
+        for municipio_codigo, municipio_nombre in depto_info['municipios'].items():
+            print(f"    {municipio_codigo} - {municipio_nombre}")
 
-                input("Presione Enter para continuar...")
-    # Salir
-    elif selec == '4':
-        limpiar()
-        renta = int (input("Ingrese su renta anual: "))
+def sistema_consulta():
+    while True:
+        print("\nSistema de Consulta de Departamentos y Municipios")
+        print("1. Registrar Usuario")
+        print("2. Iniciar Sesión")
+        print("3. Salir")
+        opcion = input("Seleccione una opción: ")
 
-        if(renta<60000 ):
-            print("Su renta es del tipo impositivo de 10%")
-        elif(renta>=60000):
-            print("Su renta es del tipo impositivo de 45%")
-        else:
-            print("Error")
+        if opcion == '1':
+            registrar_usuario(usuarios)
+        elif opcion == '2':
+            if iniciar_sesion(usuarios):
+                while True:
+                    print("\nMenú Principal")
+                    print("1. Consultar Departamento y Municipio por Cédula")
+                    print("2. Consultar Departamento y Municipios")
+                    print("3. Cerrar Sesión")
+                    opcion = input("Seleccione una opción: ")
 
-        input("Presione Enter para continuar...")
- 
-    elif selec == '5':
-        limpiar()
-        edad1 = int(input("Ingrese su Edad: "))
+                    if opcion == '1':
+                        limpiar()
+                        dni = input("Ingrese su numero de identidad: ")
 
-        edad = 2024 - int(edad1)
-        anio = 2024 - edad1
+                        if not dni.isdigit() or len(dni) != 13:
+                            print("Numero de identidad invalido, intente de nuevo (13 digitos y solo enteros)")
+                            input("Presione Enter para continuar...")
+                        else:
+                            id_departamento = dni[0:2]
+                            id_municipio = dni[2:4]
+                            id_anionacimiento = dni[4:8]
+                            edad = datetime.now().year - int(id_anionacimiento)
 
-        for i in range(1,edad1+1): 
-            anio = 2024 - edad1
-            print("Edad: ",i,"=",anio+i)   
+                            if id_departamento not in departamentos_municipios or id_municipio not in departamentos_municipios[id_departamento]['municipios']:
+                                print("Datos no encontrados.")
+                                input("Presione Enter para continuar...")
+                            else:
+                                departamento = departamentos_municipios[id_departamento]
+                                municipio = departamento['municipios'].get(id_municipio)
+                                print("Departamento: ", departamento['nombre'])
+                                print("Municipio: ", municipio)
+                                print("Edad: ", edad, " años")
 
-        input("Presione Enter para continuar...")
- 
-    elif selec == '3':
-        limpiar()
-        print("Programa finalizado.")
-        exit()
-    else:
-        print("Opcion no valida, intente de nuevo.")
-        input("Presione Enter para continuar...")
+                                if edad >= 21:
+                                    print("Eres mayor de edad")
+                                elif edad >= 18:
+                                    print("Eres ciudadano")
+                                else:
+                                    print("Eres menor de edad")
+
+                                input("Presione Enter para continuar...")
+                    elif opcion == '2':
+                        limpiar()
+                        id = input("Ingrese el numero de departamento para ver sus municipios y su codigo (ejemplo 16): ")
+                        if not id.isdigit() or len(id) != 2:
+                            print("Codigo no valido, por favor intente de nuevo. (2 digitos y solo enteros)")
+                            input("Presione Enter para continuar...")
+                        else:
+                            if id not in departamentos_municipios:
+                                print("Departamento no encontrado.")
+                                input("Presione Enter para continuar...")
+                            else:
+                                print("Departamento encontrado: ", departamentos_municipios[id]['nombre'])
+                                print("-----------------------------------------------------")
+                                print("Codigo\t\t Municipio")
+                                print("-----------------------------------------------------")
+                                for municipio in departamentos_municipios[id]['municipios']:
+                                    print(municipio, "\t\t", departamentos_municipios[id]['municipios'][municipio])
+                                    
+                                input("Presione Enter para continuar...")
+                    elif opcion == '3':
+                        break
+        elif opcion == '3':
+            break
+
+sistema_consulta()
